@@ -26,158 +26,165 @@ from dragonfly.actions.typeables import typeables
 if 'semicolon' not in typeables:
     typeables["semicolon"] = keyboard.get_typeable(char=';')
 
-my_mapping = {}
+class _KeystrokeRule(MappingRule):
+    exported=False
+    mapping={
+        # motions
+        "up": "up",
+        "down": "down",
+        "right": "right",
+        "left": "left",
+        "page up": "pgup",
+        "page down": "pgdown",
+        "home": "home",
+        "end": "end",
+        "scape": "escape",
+        "tab": "tab",
+        "scratch": "backspace",
 
-movementMap = {
-    "(up|oop)": "up",
-    "(down|doon)": "down",
-    "right": "right",
-    "left": "left",
-    "(page up|page oop)": "pgup",
-    "(page down|page doon)": "pgdown",
-    "home": "home",
-    "end": "end",
-    "ace": "space",
-    "(enter|return|slap)": "enter",
-    "escape": "escape",
-    "tab": "tab",
-    "backspace": "backspace",
-}
-my_mapping.update(movementMap)
+        # special characters
+        "space": "space",
+        "slap": "enter",
+        "bang": "bang", # !
+        "atta": "at", # @
+        "hash": "hash", # #
+        "(dollar|doll)": "dollar", # $
+        "percent": "percent",
+        "caret": "caret",
+        "ampers": "and",
+        "star": "star",
+        "lepa": "lparen",
+        "repa": "rparen",
+        "(minus|hyphen)": "minus",
+        "underscore": "underscore",
+        "plus": "plus",
+        "backtick": "backtick",
+        "tilde": "tilde",
+        "lacket": "lbracket",
+        "racket": "rbracket",
+        "lace": "lbrace",
+        "race": "rbrace",
+        "backslash": "backslash",
+        "(bar|pipe)": "bar",
+        "colon": "colon",
+        "semicolon": "semicolon",
+        "(single quote|apostrophe)": "squote",
+        "quote": "dquote",
+        "comma": "comma",
+        "dot": "dot",
+        "slash": "slash",
+        "langle": "langle",
+        "rangle": "rangle",
+        "question": "question",
+        "(equal|equals)": "equal",
 
-numberMap = {
-    "zero": "0",
-    "one": "1",
-    "two": "2",
-    "three": "3",
-    "four": "4",
-    "five": "5",
-    "six": "6",
-    "seven": "7",
-    "eight": "8",
-    "nine": "9",
-}
-my_mapping.update(numberMap)
+        # letters
+        "(alpha|alef)": "a",
+        "(bravo)": "b",
+        "(charlie)": "c",
+        "(delta)": "d",
+        "(echo)": "e",
+        "(foxtrot|fox)": "f",
+        "(gang|gamma)": "g",
+        "(hotel)": "h",
+        "(indy)": "i",
+        "(juliet|julie)": "j",
+        "(kilo)": "k",
+        "(lima)": "l",
+        "(mike|mama)": "m",
+        "(november|nova)": "n",
+        "(oscar)": "o",
+        "(poppa|pop|papa)": "p",
+        "(quiche|queen)": "q",
+        "(romeo|roma)": "r",
+        "(sierra|south|sigma|sig)": "s",
+        "(tango)": "t",
+        "(uniform|uncle)": "u",
+        "(victor)": "v",
+        "(whiskey)": "w",
+        "(x-ray)": "x",
+        "(yankee)": "y",
+        "(zulu) ": "z",
 
-letterMap = {
-    "(alpha|alef)": "a",
-    "(bravo)": "b",
-    "(charlie)": "c",
-    "(delta|del)": "d",
-    "(echo|east)": "e",
-    "(foxtrot|fox)": "f",
-    "(gang|gamma)": "g",
-    "(hotel)": "h",
-    "(indy)": "i",
-    "(juliet|jon)": "j",
-    "(kilo|kappa)": "k",
-    "(lima|lam|lamda)": "l",
-    "(mike|moo)": "m",
-    "(november|north)": "n",
-    "(oscar)": "o",
-    "(poppa|pop)": "p",
-    "(quiche|queen)": "q",
-    "(romeo|roman)": "r",
-    "(sierra|south|sigma|sig)": "s",
-    "(tango)": "t",
-    "(uniform|umm|you|yunee)": "u",
-    "(victor)": "v",
-    "(whiskey|west)": "w",
-    "(x-ray)": "x",
-    "(yankee|why)": "y",
-    "(zulu|zed|zeta) ": "z",
-}
+        # digits
+        "zero": "0",
+        "one": "1",
+        "two": "2",
+        "three": "3",
+        "four": "4",
+        "five": "5",
+        "six": "6",
+        "seven": "7",
+        "eight": "8",
+        "nine": "9",
+    }
 
-# generate uppercase versions of every letter
-upperLetterMap = {}
-for letter in letterMap:
-    upperLetterMap["(sky|big) " + letter] = letterMap[letter].upper()
-letterMap.update(upperLetterMap)
-my_mapping.update(letterMap)
+class _ModifierRule(MappingRule):
+    exported=False
+    mapping={
+        "troll": "c",
+        "alter": "a",
+        "super": "w",
+        "shift": "s",
+    }
 
-specialCharMap = {
-    "bang": "bang", # !
-    "at sign": "at", # @
-    "hash": "hash", # #
-    "(dollar|doll)": "dollar", # $
-    "percent": "percent",
-    "caret": "caret",
-    "ampers": "and",
-    "star": "star",
-    "left paren": "lparen",
-    "right paren": "rparen",
-    "(minus|hyphen)": "minus",
-    "underscore": "underscore",
-    "plus": "plus",
-    "backtick": "backtick",
-    "tilde": "tilde",
-    "left bracket": "lbracket",
-    "right bracket": "rbracket",
-    "backslash": "backslash",
-    "(bar|pipe)": "bar",
-    "colon": "colon",
-    "semicolon": "semicolon",
-    "(single quote|apostrophe)": "squote",
-    "quote": "quote",
-    "comma": "comma",
-    "dot": "dot",
-    "slash": "slash",
-    "langle": "langle",
-    "rangle": "rangle",
-    "question": "question",
-    "(equal|equals)": "equals"
-}
-my_mapping.update(specialCharMap)
+class KeystrokeRule(CompoundRule):
+    spec = "[<mod1>] [<mod2>] <keystroke> [<n> times]"
+    extras = [RuleRef(name="keystroke", rule=_KeystrokeRule()),
+              RuleRef(name="mod1", rule=_ModifierRule(name="m1")),
+              RuleRef(name="mod2", rule=_ModifierRule(name="m2")),
+              IntegerRef("n",1,100)]
+    defaults = {"n":1}
 
-winMap = {}
-for k, v in my_mapping.items():
-    winMap["win " + k] = "w-" + v
-
-altMap = {}
-for k, v in my_mapping.items():
-    altMap["alter " + k] = "a-" + v
-
-controlMap = {}
-for k, v in my_mapping.items():
-    controlMap["troll " + k] = "c-" + v
-
-
-my_mapping.update(controlMap)
-my_mapping.update(altMap)
-my_mapping.update(winMap)
-
-
-my_mapping = {k: Key(v) for k,v in my_mapping.items()}
-class KeystrokeRule(MappingRule):
-    export=False
-    mapping = my_mapping
-
-alternatives = []
-alternatives.append(RuleRef(rule=KeystrokeRule()))
-single_action = Alternative(alternatives)
-
-sequence = Repetition(single_action, min=1, max=16, name="sequence")
-class KeystrokeSequenceRule(CompoundRule):
-    # Here we define this rule's spoken-form and special elements.
-    spec = "<sequence>"
-    extras = [
-        sequence,  # Sequence of actions defined above.
-    ]
-
-    def _process_recognition(self, node, extras):  # @UnusedVariable
-        sequence = extras["sequence"]  # A sequence of actions.
-        for action in sequence:
-            action.execute()
-
-key_sequence_rule = KeystrokeSequenceRule(name="key_sequence_rule")
+    def value(self, node):
+        root = node.children[0].children[0]
+        mod1 = root.children[0].value()
+        mod2 = root.children[1].value()
+        stroke = root.children[2].value()
+        times = root.children[3].value()
+        mod = ""
+        if mod1:
+            mod += mod1
+        if mod2:
+            mod += mod2
+        if mod:
+            stroke = "{}-{}".format(mod, stroke)
+        stroke = Key(stroke)
+        ret = stroke
+        if times:
+            times = times[0]
+            for _ in range(times-1):
+                ret = ret + stroke
+        return ret
 
 
+class EmacsCommandRule(MappingRule):
+    exported=False
+    mapping = {
+        "quit": Key("c-g"),
+        "drop": Key("c-d"),
+        "(gopa|go up|gope)": Key("c-u"),
+        "altex": Key("a-x"),
+        # TODO replace with M-x command
+        "find file": Key("a-m , f , f"),
+        "buffer list": Key("a-m , b , b"),
+        "save buffer": Key("a-m , f , s"),
+        "highlight": Key("a-m , v"),
+        "avy word": Key("a-m , j, w"),
+        # TODO evil-easymotion, macro, "todo"
+    }
+
+
+# TODO better keywords (eg say, studley)
+# TODO allow (some) nesting
+# TODO combine dictation with python (and other) vocabulary
 class FormatRule(CompoundRule):
     spec = ('[upper | natural] ( proper | camel | rel-path | abs-path | score | sentence | '
             'scope-resolve | jumble | dotword | dashword | natword | snakeword | brooding-narrative) [<dictation>]')
     extras = [Dictation(name='dictation')]
 
-    def value(self, node):
+    #def value(self, node):
+    def _process_recognition(self, node, extras):
         words = node.words()
 
         uppercase = words[0] == 'upper'
@@ -195,22 +202,36 @@ class FormatRule(CompoundRule):
         function = getattr(aenea.format, 'format_%s' % words[0].lower())
         formatted = function(words[1:])
 
-        return Text(formatted)
+        #return Text(formatted)
+        Text(formatted).execute()
 
-#format_rule = FormatRule(name="format_rule")
-format_rule = RuleRef(name='format_rule', rule=FormatRule(name='i'))
+format_rule = FormatRule(name="format_rule")
 
-class LiteralRule(CompoundRule):
-    spec = "<format_rule>"
-    extras = [format_rule]
+alternatives = []
+alternatives.append(RuleRef(rule=KeystrokeRule()))
+alternatives.append(RuleRef(rule=EmacsCommandRule()))
+single_action = Alternative(alternatives)
 
-    def _process_recognition(self, node, extras):
-        extras['format_rule'].execute(extras)
-literal_rule = LiteralRule()
+sequence = Repetition(single_action, min=1, max=16, name="sequence")
+# TODO add repeating element
+class RepeatRule(CompoundRule):
+    # Here we define this rule's spoken-form and special elements.
+    # TODO finish with format_rule?
+    spec = "<sequence>"
+    extras = [
+        sequence,  # Sequence of actions defined above.
+    ]
+
+    def _process_recognition(self, node, extras):  # @UnusedVariable
+        sequence = extras["sequence"]  # A sequence of actions.
+        for action in sequence:
+            action.execute()
+
+repeat_rule = RepeatRule(name="repeat_rule")
 
 grammar = Grammar("Generic edit")
-grammar.add_rule(key_sequence_rule)  # Add the top-level rule.
-grammar.add_rule(literal_rule)  # Add the top-level rule.
+grammar.add_rule(repeat_rule)  # Add the top-level rule.
+grammar.add_rule(format_rule)  # Add the top-level rule.
 grammar.load()  # Load the grammar.
 
 # Unload function which will be called at unload time.
