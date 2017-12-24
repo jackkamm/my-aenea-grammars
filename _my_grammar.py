@@ -26,9 +26,10 @@ from dragonfly.actions.typeables import typeables
 if 'semicolon' not in typeables:
     typeables["semicolon"] = keyboard.get_typeable(char=';')
 
+
 class _KeystrokeRule(MappingRule):
-    exported=False
-    mapping={
+    exported = False
+    mapping = {
         # motions
         "up": "up",
         "down": "down",
@@ -42,17 +43,22 @@ class _KeystrokeRule(MappingRule):
         "tab": "tab",
         "scratch": "backspace",
 
+        # shortcuts for vim style motion
+        "drop": "c-d",
+        "(gopa|go up|gope)": "c-u",
+        "scroll up": "c-y",
+        "scroll down": "c-e",
+
         # special characters
         "space": "space",
         "slap": "enter",
-        "bang": "bang", # !
-        "atta": "at", # @
-        "hash": "hash", # #
-        "(dollar|doll)": "dollar", # $
+        "bang": "bang",  # !
+        "atta": "at",  # @
+        "hash": "hash",  # #
+        "(dollar|doll)": "dollar",  # $
         "percent": "percent",
         "caret": "caret",
-        "ampers": "and",
-        "star": "star",
+        "star": "asterisk",
         "lepa": "lparen",
         "repa": "rparen",
         "(minus|hyphen)": "minus",
@@ -65,10 +71,11 @@ class _KeystrokeRule(MappingRule):
         "lace": "lbrace",
         "race": "rbrace",
         "backslash": "backslash",
-        "(bar|pipe)": "bar",
+        "bit and": "ampersand",
+        "bit or": "bar",
         "colon": "colon",
         "semicolon": "semicolon",
-        "(single quote|apostrophe)": "squote",
+        "apostrophe": "squote",
         "quote": "dquote",
         "comma": "comma",
         "dot": "dot",
@@ -79,7 +86,7 @@ class _KeystrokeRule(MappingRule):
         "(equal|equals)": "equal",
 
         # letters
-        "(alpha|alef)": "a",
+        "archie": "a",
         "(bravo)": "b",
         "(charlie)": "c",
         "(delta)": "d",
@@ -119,22 +126,26 @@ class _KeystrokeRule(MappingRule):
         "nine": "9",
     }
 
+
 class _ModifierRule(MappingRule):
-    exported=False
-    mapping={
+    exported = False
+    mapping = {
         "troll": "c",
         "alter": "a",
         "super": "w",
-        "shift": "s",
+        "(shift|big)": "s",
     }
 
+
 class KeystrokeRule(CompoundRule):
-    spec = "[<mod1>] [<mod2>] <keystroke> [<n> times]"
-    extras = [RuleRef(name="keystroke", rule=_KeystrokeRule()),
-              RuleRef(name="mod1", rule=_ModifierRule(name="m1")),
-              RuleRef(name="mod2", rule=_ModifierRule(name="m2")),
-              IntegerRef("n",1,100)]
-    defaults = {"n":1}
+    spec = "[<mod1>] [<mod2>] <keystroke> [(twice|thrice|<n> ice)]"
+    extras = [
+        RuleRef(name="keystroke", rule=_KeystrokeRule()),
+        RuleRef(name="mod1", rule=_ModifierRule(name="m1")),
+        RuleRef(name="mod2", rule=_ModifierRule(name="m2")),
+        IntegerRef("n", 1, 100)
+    ]
+    defaults = {"n": 1}
 
     def value(self, node):
         root = node.children[0].children[0]
@@ -150,69 +161,96 @@ class KeystrokeRule(CompoundRule):
         if mod:
             stroke = "{}-{}".format(mod, stroke)
         stroke = Key(stroke)
-        ret = stroke
-        if times:
+        if times == "twice":
+            times = 2
+        elif times == "thrice":
+            times = 3
+        elif times:
             times = times[0]
-            for _ in range(times-1):
-                ret = ret + stroke
-        return ret
+        else:
+            times = 1
+        return stroke * times
 
 
 class EmacsCommandRule(MappingRule):
-    exported=False
+    exported = False
     mapping = {
-        "quit": Key("c-g"),
-        "drop": Key("c-d"),
-        "(gopa|go up|gope)": Key("c-u"),
-        "altex": Key("a-x"),
+        "quit":
+        Key("c-g"),
+        "altex":
+        Key("a-x"),
+        # use M-: instead of M-x because helm-M-x requires delay
+        "find file":
+        Key("a-colon") + Text("(call-interactively 'helm-find-files)") +
+        Key("enter"),
+        "helm swoop":
+        Key("a-colon") + Text("(call-interactively 'helm-swoop)") +
+        Key("enter"),
         # TODO replace with M-x command
-        "find file": Key("a-m , f , f"),
-        "buffer list": Key("a-m , b , b"),
-        "save buffer": Key("a-m , f , s"),
-        "highlight": Key("a-m , v"),
-        "avy word": Key("a-m , j, w"),
+        "buffer list":
+        Key("a-m , b , b"),
+        "save buffer":
+        Key("a-m , f , s"),
+        "avy word":
+        Key("a-m , j, w"),
         # TODO evil-easymotion, macro, "todo"
     }
 
 
-# TODO better keywords (eg say, studley)
-# TODO allow (some) nesting
-# TODO combine dictation with python (and other) vocabulary
-class FormatRule(CompoundRule):
-    spec = ('[upper | natural] ( proper | camel | rel-path | abs-path | score | sentence | '
-            'scope-resolve | jumble | dotword | dashword | natword | snakeword | brooding-narrative) [<dictation>]')
-    extras = [Dictation(name='dictation')]
+class FormatMapping(MappingRule):
+    exported = False
+    mapping = {
+        "say": aenea.format.format_natword,
+        "snake": aenea.format.format_score,
+        "studley": aenea.format.format_proper,
+        "camel": aenea.format.format_camel,
+        "jumble": aenea.format.format_jumble,
+        "dotword": aenea.format.format_dotword,
+        "dashword": aenea.format.format_dashword,
+        "sentence": aenea.format.format_sentence,
+    }
 
-    #def value(self, node):
+
+dictation = Dictation(name="dictation")
+
+
+class MyFormatRule(CompoundRule):
+    spec = "<format_rule> <dictation>"
+    extras = [
+        RuleRef(name="format_rule", rule=FormatMapping()),
+        dictation,
+    ]
+
+    def value(self, node):
+        root = node.children[0].children[0]
+        format_rule = root.children[0].value()
+        dictation = root.children[1].value()
+        # TODO need to remove hyphens? see aenea-grammars/_multiedit.py
+        words = dictation.format().lower().split()
+        return Text(format_rule(words))
+
+
+my_format_rule = RuleRef(name="my_format_rule", rule=MyFormatRule())
+
+
+class MyLiteralRule(CompoundRule):
+    """Rule for saying MyFormatRule literally (without interruptions by other rules)"""
+    spec = "literal <my_format_rule>"
+    extras = [my_format_rule]
+
     def _process_recognition(self, node, extras):
-        words = node.words()
+        extras["my_format_rule"].execute()
 
-        uppercase = words[0] == 'upper'
-        lowercase = words[0] != 'natural'
-
-        if lowercase:
-            words = [word.lower() for word in words]
-        if uppercase:
-            words = [word.upper() for word in words]
-
-        words = [word.split('\\', 1)[0].replace('-', '') for word in words]
-        if words[0].lower() in ('upper', 'natural'):
-            del words[0]
-
-        function = getattr(aenea.format, 'format_%s' % words[0].lower())
-        formatted = function(words[1:])
-
-        #return Text(formatted)
-        Text(formatted).execute()
-
-format_rule = FormatRule(name="format_rule")
 
 alternatives = []
+alternatives.append(my_format_rule)
 alternatives.append(RuleRef(rule=KeystrokeRule()))
 alternatives.append(RuleRef(rule=EmacsCommandRule()))
 single_action = Alternative(alternatives)
 
 sequence = Repetition(single_action, min=1, max=16, name="sequence")
+
+
 # TODO add repeating element
 class RepeatRule(CompoundRule):
     # Here we define this rule's spoken-form and special elements.
@@ -227,12 +265,14 @@ class RepeatRule(CompoundRule):
         for action in sequence:
             action.execute()
 
+
 repeat_rule = RepeatRule(name="repeat_rule")
 
 grammar = Grammar("Generic edit")
 grammar.add_rule(repeat_rule)  # Add the top-level rule.
-grammar.add_rule(format_rule)  # Add the top-level rule.
+grammar.add_rule(MyLiteralRule(name="literal_rule"))  # Add the top-level rule.
 grammar.load()  # Load the grammar.
+
 
 # Unload function which will be called at unload time.
 def unload():
