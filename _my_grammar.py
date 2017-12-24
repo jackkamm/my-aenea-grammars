@@ -104,7 +104,7 @@ class _KeystrokeRule(MappingRule):
         "(poppa|pop|papa)": "p",
         "(quiche|queen)": "q",
         "(romeo|roma)": "r",
-        "(sierra|south|sigma|sig)": "s",
+        "(sierra|sigma)": "s",
         "(tango)": "t",
         "(uniform|uncle)": "u",
         "(victor)": "v",
@@ -172,29 +172,55 @@ class KeystrokeRule(CompoundRule):
         return stroke * times
 
 
-class EmacsCommandRule(MappingRule):
+class _EmacsKeyRule(MappingRule):
     exported = False
     mapping = {
-        "quit":
-        Key("c-g"),
-        "altex":
-        Key("a-x"),
-        # use M-: instead of M-x because helm-M-x requires delay
-        "find file":
-        Key("a-colon") + Text("(call-interactively 'helm-find-files)") +
-        Key("enter"),
-        "helm swoop":
-        Key("a-colon") + Text("(call-interactively 'helm-swoop)") +
-        Key("enter"),
-        # TODO replace with M-x command
-        "buffer list":
-        Key("a-m , b , b"),
-        "save buffer":
-        Key("a-m , f , s"),
-        "avy word":
-        Key("a-m , j, w"),
-        # TODO evil-easymotion, macro, "todo"
+        "save buffer": "a-m,f,s",
+        "highlight": "a-m,v",
+        "quit": "c-g",
+        "altex": "a-x",
     }
+
+
+class EmacsKeyRule(CompoundRule):
+    spec = "<emacs_keys>"
+    extras = [RuleRef(name="emacs_keys", rule=_EmacsKeyRule())]
+
+    def value(self, node):
+        root = node.children[0].children[0]
+        keys = root.children[0].value()
+        return Key(keys)
+
+    def _process_recognition(self, node, extras):
+        self.value(node).execute()
+
+
+class _EmacsCommandRule(MappingRule):
+    exported = False
+    mapping = {
+        "find file": "helm-find-files",
+        "helm swoop": "helm-swoop",
+        "rej save": "copy-to-register",
+        "rej pop": "insert-register",
+        "buffer list": "helm-mini",
+        "avy char": "evil-avy-goto-char-in-line",
+        "avy word": "evil-avy-goto-word-or-subword-1",
+    }
+
+
+class EmacsCommandRule(CompoundRule):
+    spec = "<emacs_command>"
+    extras = [RuleRef(name="emacs_command", rule=_EmacsCommandRule())]
+
+    def value(self, node):
+        root = node.children[0].children[0]
+        command = root.children[0].value()
+        # avoid using helm-M-x because it requires delay before entering
+        return Key("a-colon") + Text(
+            "(call-interactively '{})".format(command)) + Key("enter")
+
+    def _process_recognition(self, node, extras):
+        self.value(node).execute()
 
 
 class FormatMapping(MappingRule):
@@ -242,10 +268,23 @@ class MyLiteralRule(CompoundRule):
         extras["my_format_rule"].execute()
 
 
+my_vocabulary_mapping = {
+    "py deaf": "def",
+    "for loop": "for",
+}
+
+
+class MyVocabulary(MappingRule):
+    exported = True
+    mapping = {k: Text(v) for k, v in my_vocabulary_mapping.items()}
+
+
 alternatives = []
-alternatives.append(my_format_rule)
 alternatives.append(RuleRef(rule=KeystrokeRule()))
+alternatives.append(RuleRef(rule=MyVocabulary()))
 alternatives.append(RuleRef(rule=EmacsCommandRule()))
+alternatives.append(RuleRef(rule=EmacsKeyRule()))
+alternatives.append(my_format_rule)
 single_action = Alternative(alternatives)
 
 sequence = Repetition(single_action, min=1, max=16, name="sequence")
