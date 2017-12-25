@@ -6,6 +6,7 @@ from aenea import (
     Rule,
     Text,
     Key,
+    Mimic,
     Function,
     Dictation,
     Choice,
@@ -45,7 +46,7 @@ class _KeystrokeRule(MappingRule):
 
         # shortcuts for vim style motion
         "drop": "c-d",
-        "(gopa|go up|gope)": "c-u",
+        "sky": "c-u",
         "scroll up": "c-y",
         "scroll down": "c-e",
 
@@ -55,13 +56,13 @@ class _KeystrokeRule(MappingRule):
         "bang": "bang",  # !
         "atta": "at",  # @
         "hash": "hash",  # #
-        "(dollar|doll)": "dollar",  # $
+        "dollar": "dollar",  # $
         "percent": "percent",
         "caret": "caret",
         "star": "asterisk",
         "lepa": "lparen",
         "repa": "rparen",
-        "(minus|hyphen)": "minus",
+        "(dash|minus|hyphen)": "minus",
         "underscore": "underscore",
         "plus": "plus",
         "backtick": "backtick",
@@ -175,10 +176,12 @@ class KeystrokeRule(CompoundRule):
 class _EmacsKeyRule(MappingRule):
     exported = False
     mapping = {
+        "window": "a-m,w",
         "save buffer": "a-m,f,s",
         "highlight": "a-m,v",
         "quit": "c-g",
         "altex": "a-x",
+        "easy": "a-m,o,m"  #evil-easymotion
     }
 
 
@@ -199,7 +202,9 @@ class _EmacsCommandRule(MappingRule):
     exported = False
     mapping = {
         "find file": "helm-find-files",
-        "helm swoop": "helm-swoop",
+        "recent file": "helm-recentf",
+        "swiper": "helm-swoop",
+        #"not much": "notmuch",
         "rej save": "copy-to-register",
         "rej pop": "insert-register",
         "buffer list": "helm-mini",
@@ -269,8 +274,8 @@ class MyLiteralRule(CompoundRule):
 
 
 my_vocabulary_mapping = {
-    "py deaf": "def",
-    "for loop": "for",
+    "py deaf": "def ",
+    "for loop": "for ",
 }
 
 
@@ -307,9 +312,15 @@ class RepeatRule(CompoundRule):
 
 repeat_rule = RepeatRule(name="repeat_rule")
 
+
+class MyMimicRule(MappingRule):
+    mapping = {"snore": Mimic("go to sleep")}
+
+
 grammar = Grammar("Generic edit")
 grammar.add_rule(repeat_rule)  # Add the top-level rule.
 grammar.add_rule(MyLiteralRule(name="literal_rule"))  # Add the top-level rule.
+grammar.add_rule(MyMimicRule())
 grammar.load()  # Load the grammar.
 
 
