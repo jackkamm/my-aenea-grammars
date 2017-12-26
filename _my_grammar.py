@@ -301,12 +301,18 @@ repeat_rule = RepeatRule(name="repeat_rule")
 class _EmacsKeyRule(MappingRule):
     exported = False
     mapping = {
-        "window": "a-m,w",
-        "save buffer": "a-m,f,s",
-        "highlight": "a-m,v",
         "quit": "c-g",
         "altex": "a-x",
-        "easy": "a-m,o,m"  #evil-easymotion
+        "file": "a-m,f",
+        "buffer": "a-m,b",
+        "search": "a-m,s",
+        "window": "a-m,w",
+        "highlight": "a-m,v",
+        "easy": "a-m,o,m",  #personal binding for evil-easymotion
+        "jump": "a-m,j",
+        "jump char":
+        "a-m,o,f",  #personal binding for evil-avy-goto-char-in-line
+        "majit": "a-m,g",
     }
 
 
@@ -323,36 +329,6 @@ class EmacsKeyRule(CompoundRule):
         self.value(node).execute()
 
 
-class _EmacsCommandRule(MappingRule):
-    exported = False
-    mapping = {
-        "find file": "helm-find-files",
-        "recent file": "helm-recentf",
-        "swiper": "helm-swoop",
-        #"not much": "notmuch",
-        "rej save": "copy-to-register",
-        "rej pop": "insert-register",
-        "buffer list": "helm-mini",
-        "avy char": "evil-avy-goto-char-in-line",
-        "avy word": "evil-avy-goto-word-or-subword-1",
-    }
-
-
-class EmacsCommandRule(CompoundRule):
-    spec = "<emacs_command>"
-    extras = [RuleRef(name="emacs_command", rule=_EmacsCommandRule())]
-
-    def value(self, node):
-        root = node.children[0].children[0]
-        command = root.children[0].value()
-        # avoid using helm-M-x because it requires delay before entering
-        return Key("a-colon") + Text(
-            "(call-interactively '{})".format(command)) + Key("enter")
-
-    def _process_recognition(self, node, extras):
-        self.value(node).execute()
-
-
 class MyVocabulary(MappingRule):
     exported = True
     mapping = {k: Text(v) for k, v in my_vocabulary_mapping.items()}
@@ -360,7 +336,6 @@ class MyVocabulary(MappingRule):
 
 prefixes = []
 prefixes.append(RuleRef(rule=MyVocabulary()))
-prefixes.append(RuleRef(rule=EmacsCommandRule()))
 prefixes.append(RuleRef(rule=EmacsKeyRule()))
 prefixes = Alternative(prefixes, name="prefixes")
 
