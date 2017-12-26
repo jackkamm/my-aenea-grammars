@@ -27,6 +27,7 @@ from dragonfly.actions.typeables import typeables
 if 'semicolon' not in typeables:
     typeables["semicolon"] = keyboard.get_typeable(char=';')
 
+grammar = Grammar("Generic edit")
 
 class _KeystrokeRule(MappingRule):
     exported = False
@@ -132,31 +133,7 @@ class _ModifierRule(MappingRule):
     }
 
 
-class KeystrokeRule(CompoundRule):
-    spec = "[<mod1>] [<mod2>] <raw_keystroke>"
-    extras = [
-        RuleRef(name="raw_keystroke", rule=_KeystrokeRule()),
-        RuleRef(name="mod1", rule=_ModifierRule(name="m1")),
-        RuleRef(name="mod2", rule=_ModifierRule(name="m2")),
-    ]
-
-    def value(self, node):
-        root = node.children[0].children[0]
-        mod1 = root.children[0].value()
-        mod2 = root.children[1].value()
-        stroke = root.children[2].value()
-        mod = ""
-        if mod1:
-            mod += mod1
-        if mod2:
-            mod += mod2
-        if mod:
-            stroke = "{}-{}".format(mod, stroke)
-        stroke = Key(stroke)
-        return stroke
-
-
-class MyRepeatRule(CompoundRule):
+class RepeatCountRule(CompoundRule):
     exported = False
     spec = "(twice|thrice|<n> ice)"
     extras = [IntegerRef("n", 1, 100)]
@@ -172,57 +149,39 @@ class MyRepeatRule(CompoundRule):
             return times[0]
 
 
-my_repeat_rule = MyRepeatRule(name="my_repeat_rule")
+repeat_count_rule = RepeatCountRule(name="repeat_count_rule")
 
 
-class RepeatableKeystrokeRule(CompoundRule):
-    spec = "<keystroke> [<times>]"
+class KeystrokeRule(CompoundRule):
+    spec = "[<mod1>] [<mod2>] <raw_keystroke> [<times>]"
     extras = [
-        RuleRef(name="keystroke", rule=KeystrokeRule()),
-        RuleRef(name="times", rule=my_repeat_rule)
+        RuleRef(name="raw_keystroke", rule=_KeystrokeRule()),
+        RuleRef(name="mod1", rule=_ModifierRule(name="m1")),
+        RuleRef(name="mod2", rule=_ModifierRule(name="m2")),
+        RuleRef(name="times", rule=repeat_count_rule),
     ]
 
     def value(self, node):
         root = node.children[0].children[0]
-        stroke = root.children[0].value()
-        times = root.children[1].value()
+        mod1 = root.children[0].value()
+        mod2 = root.children[1].value()
+        stroke = root.children[2].value()
+        times = root.children[3].value()
+        mod = ""
+        if mod1:
+            mod += mod1
+        if mod2:
+            mod += mod2
+        if mod:
+            stroke = "{}-{}".format(mod, stroke)
+        stroke = Key(stroke)
         if times:
             return stroke * times
         else:
             return stroke
 
 
-class _KeystrokeShortcut(MappingRule):
-    mapping = {
-        # shortcuts for vim style motion
-        "drop": Key("c-d"),
-        "sky": Key("c-u"),
-        "scroll up": Key("c-y"),
-        "scroll down": Key("c-e"),
-    }
-
-
-class KeystrokeShortcut(CompoundRule):
-    spec = "<keystroke> [<times>]"
-    extras = [
-        RuleRef(name="keystroke", rule=_KeystrokeShortcut()),
-        RuleRef(name="times", rule=my_repeat_rule)
-    ]
-
-    def value(self, node):
-        root = node.children[0].children[0]
-        stroke = root.children[0].value()
-        times = root.children[1].value()
-        if times:
-            return stroke * times
-        else:
-            return stroke
-
-    def _process_recognition(self, node, extras):  # @UnusedVariable
-        node.value().execute()
-
-
-class FormatMapping(MappingRule):
+class FormatFunctionMapping(MappingRule):
     exported = False
     mapping = {
         "say": aenea.format.format_natword,
@@ -242,7 +201,7 @@ dictation = Dictation(name="dictation")
 class MyFormatRule(CompoundRule):
     spec = "<format_rule> <dictation>"
     extras = [
-        RuleRef(name="format_rule", rule=FormatMapping()),
+        RuleRef(name="format_rule", rule=FormatFunctionMapping()),
         dictation,
     ]
 
@@ -267,23 +226,15 @@ class MyLiteralRule(CompoundRule):
         extras["my_format_rule"].execute()
 
 
-my_vocabulary_mapping = {
-    "py deaf": "def ",
-    "for loop": "for ",
-}
-
 alternatives = []
-alternatives.append(RuleRef(rule=RepeatableKeystrokeRule()))
+alternatives.append(RuleRef(rule=KeystrokeRule()))
 alternatives.append(my_format_rule)
 single_action = Alternative(alternatives)
 
 sequence = Repetition(single_action, min=1, max=16, name="sequence")
 
 
-# TODO add repeating element
-class RepeatRule(CompoundRule):
-    # Here we define this rule's spoken-form and special elements.
-    # TODO finish with format_rule?
+class MyChainingRule(CompoundRule):
     spec = "<sequence>"
     extras = [
         sequence,  # Sequence of actions defined above.
@@ -295,10 +246,14 @@ class RepeatRule(CompoundRule):
             action.execute()
 
 
-repeat_rule = RepeatRule(name="repeat_rule")
+my_chaining_rule = MyChainingRule(name="my_chaining_rule")
 
+grammar.add_rule(my_chaining_rule)
+grammar.add_rule(MyLiteralRule(name="literal_rule"))
 
-class _EmacsKeyRule(MappingRule):
+# TODO move above into separate file
+
+class _SpacemacsKeyRule(MappingRule):
     exported = False
     mapping = {
         "quit": "c-g",
@@ -313,12 +268,13 @@ class _EmacsKeyRule(MappingRule):
         "jump char":
         "a-m,o,f",  #personal binding for evil-avy-goto-char-in-line
         "majit": "a-m,g",
+        "help": "a-m,h",
     }
 
 
-class EmacsKeyRule(CompoundRule):
+class SpacemacsKeyRule(CompoundRule):
     spec = "<emacs_keys>"
-    extras = [RuleRef(name="emacs_keys", rule=_EmacsKeyRule())]
+    extras = [RuleRef(name="emacs_keys", rule=_SpacemacsKeyRule())]
 
     def value(self, node):
         root = node.children[0].children[0]
@@ -329,6 +285,14 @@ class EmacsKeyRule(CompoundRule):
         self.value(node).execute()
 
 
+my_vocabulary_mapping = {
+    "py deaf": "def ",
+    "for loop": "for ",
+    "to do": "TODO",
+    "fix me": "FIXME",
+}
+
+
 class MyVocabulary(MappingRule):
     exported = True
     mapping = {k: Text(v) for k, v in my_vocabulary_mapping.items()}
@@ -336,7 +300,7 @@ class MyVocabulary(MappingRule):
 
 prefixes = []
 prefixes.append(RuleRef(rule=MyVocabulary()))
-prefixes.append(RuleRef(rule=EmacsKeyRule()))
+prefixes.append(RuleRef(rule=SpacemacsKeyRule()))
 prefixes = Alternative(prefixes, name="prefixes")
 
 
@@ -363,9 +327,36 @@ class MyMimicRule(MappingRule):
     }
 
 
-grammar = Grammar("Generic edit")
-grammar.add_rule(repeat_rule)  # Add the top-level rule.
-grammar.add_rule(MyLiteralRule(name="literal_rule"))  # Add the top-level rule.
+class _KeystrokeShortcut(MappingRule):
+    mapping = {
+        # shortcuts for vim style motion
+        "drop": Key("c-d"),
+        "sky": Key("c-u"),
+        "scroll up": Key("c-y"),
+        "scroll down": Key("c-e"),
+    }
+
+
+class KeystrokeShortcut(CompoundRule):
+    spec = "<keystroke> [<times>]"
+    extras = [
+        RuleRef(name="keystroke", rule=_KeystrokeShortcut()),
+        RuleRef(name="times", rule=repeat_count_rule)
+    ]
+
+    def value(self, node):
+        root = node.children[0].children[0]
+        stroke = root.children[0].value()
+        times = root.children[1].value()
+        if times:
+            return stroke * times
+        else:
+            return stroke
+
+    def _process_recognition(self, node, extras):  # @UnusedVariable
+        node.value().execute()
+
+
 grammar.add_rule(MyMimicRule())
 grammar.add_rule(KeystrokeShortcut())
 grammar.add_rule(MyPrefixRule())
