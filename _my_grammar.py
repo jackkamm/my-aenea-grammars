@@ -27,6 +27,7 @@ from dragonfly.actions.typeables import typeables
 if 'semicolon' not in typeables:
     typeables["semicolon"] = keyboard.get_typeable(char=';')
 
+
 grammar = Grammar("Generic edit")
 
 class _KeystrokeRule(MappingRule):
@@ -297,36 +298,6 @@ class MyVocabulary(MappingRule):
     exported = True
     mapping = {k: Text(v) for k, v in my_vocabulary_mapping.items()}
 
-
-prefixes = []
-prefixes.append(RuleRef(rule=MyVocabulary()))
-prefixes.append(RuleRef(rule=SpacemacsKeyRule()))
-prefixes = Alternative(prefixes, name="prefixes")
-
-
-class MyPrefixRule(CompoundRule):
-    spec = "<prefixes> [<sequence>]"
-    extras = [prefixes, sequence]
-
-    def _process_recognition(self, node, extras):  # @UnusedVariable
-        prefixes = extras["prefixes"]
-        prefixes.execute()
-        try:
-            sequence = extras["sequence"]
-        except KeyError:
-            pass
-        else:
-            for action in sequence:
-                action.execute()
-
-
-class MyMimicRule(MappingRule):
-    mapping = {
-        "snore": Mimic("go to sleep"),
-        #"natlink reload": Mimic("force natlink to reload all grammars"),
-    }
-
-
 class _KeystrokeShortcut(MappingRule):
     mapping = {
         # shortcuts for vim style motion
@@ -334,6 +305,10 @@ class _KeystrokeShortcut(MappingRule):
         "sky": Key("c-u"),
         "scroll up": Key("c-y"),
         "scroll down": Key("c-e"),
+        # tmux
+        "tea mux": Key("c-b"),
+        # qutebrowser
+        "google": Key("o,g,space")
     }
 
 
@@ -357,8 +332,38 @@ class KeystrokeShortcut(CompoundRule):
         node.value().execute()
 
 
+prefixes = []
+prefixes.append(RuleRef(KeystrokeShortcut()))
+prefixes.append(RuleRef(rule=MyVocabulary()))
+prefixes.append(RuleRef(rule=SpacemacsKeyRule()))
+prefixes = Alternative(prefixes, name="prefixes")
+
+
+class MyPrefixRule(CompoundRule):
+    spec = "<prefixes> [<sequence>]"
+    extras = [prefixes, sequence]
+
+    def _process_recognition(self, node, extras):  # @UnusedVariable
+        prefixes = extras["prefixes"]
+        prefixes.execute()
+        try:
+            sequence = extras["sequence"]
+        except KeyError:
+            pass
+        else:
+            for action in sequence:
+                action.execute()
+
+
+class MyMimicRule(MappingRule):
+    mapping = {
+        "snore": Mimic("go to sleep") + aenea.proxy_actions.ProxyNotification("Microphone off"),
+    }
+
+
+
 grammar.add_rule(MyMimicRule())
-grammar.add_rule(KeystrokeShortcut())
+#grammar.add_rule(KeystrokeShortcut())
 grammar.add_rule(MyPrefixRule())
 grammar.load()  # Load the grammar.
 
