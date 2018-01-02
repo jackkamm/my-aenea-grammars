@@ -31,7 +31,7 @@ if 'semicolon' not in typeables:
 MULTIEDIT_TAGS = ['multiedit', 'multiedit.count']
 aenea.vocabulary.inhibit_global_dynamic_vocabulary('multiedit', MULTIEDIT_TAGS)
 
-grammar = Grammar("Generic edit")
+grammar = Grammar("multiedit")
 
 
 class _KeystrokeRule(MappingRule):
