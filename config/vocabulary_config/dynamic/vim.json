@@ -1,0 +1,10 @@
+{
+    "name": "vim",
+    "tags": ["multiedit.count", "global"],
+    "shortcuts": {
+        "drop": "c-d",
+        "sky": "c-u",
+        "scroll up": "c-y",
+        "scroll down": "c-e"
+    }
+}

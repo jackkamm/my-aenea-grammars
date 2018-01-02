@@ -1,0 +1,14 @@
+{
+    "name": "miscellaneous",
+    "tags": ["multiedit", "global"],
+    "vocabulary": {
+        "py deaf": "def ",
+        "for loop": "for ",
+        "to do": "TODO",
+        "fix me": "FIXME",
+        "lib": "lib"
+    },
+    "shortcuts": {
+        "release": "shift:up, ctrl:up, alt:up"
+    }
+}

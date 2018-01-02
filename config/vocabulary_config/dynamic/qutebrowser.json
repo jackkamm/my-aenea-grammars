@@ -1,0 +1,7 @@
+{
+    "name": "qutebrowser",
+    "tags": ["multiedit", "global"],
+    "shortcuts": {
+        "google": "o,g,space"
+    }
+}

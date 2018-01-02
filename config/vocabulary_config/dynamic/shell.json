@@ -1,0 +1,16 @@
+{
+    "name": "shell",
+    "tags": ["multiedit", "global"],
+    "vocabulary": {
+        "sue do": "sudo ",
+        "shush": "ssh ",
+        "git": "git ",
+        "conda": "conda ",
+        "lisa": "ls ",
+        "candace": "cd ",
+        "cat": "cat "
+    },
+    "shortcuts": {
+        "tea mucks": "c-b"
+    }
+}

@@ -19,6 +19,7 @@ from aenea import (
     RuleRef,
     Repetition,
     CompoundRule,
+    DictListRef,
     AppContext,
 )
 
@@ -27,8 +28,11 @@ from dragonfly.actions.typeables import typeables
 if 'semicolon' not in typeables:
     typeables["semicolon"] = keyboard.get_typeable(char=';')
 
+MULTIEDIT_TAGS = ['multiedit', 'multiedit.count']
+aenea.vocabulary.inhibit_global_dynamic_vocabulary('multiedit', MULTIEDIT_TAGS)
 
 grammar = Grammar("Generic edit")
+
 
 class _KeystrokeRule(MappingRule):
     exported = False
@@ -48,9 +52,9 @@ class _KeystrokeRule(MappingRule):
 
         # special characters
         "space": "space",
-        "slap": "enter",
-        "bang": "bang",  # !
-        "atta": "at",  # @
+        "(enter|return|slap)": "enter",
+        "bang": "exclamation",  # !
+        "at sign": "at",  # @
         "hash": "hash",  # #
         "dollar": "dollar",  # $
         "percent": "percent",
@@ -182,140 +186,44 @@ class KeystrokeRule(CompoundRule):
             return stroke
 
 
-class FormatFunctionMapping(MappingRule):
-    exported = False
-    mapping = {
-        "say": aenea.format.format_natword,
-        "snake": aenea.format.format_score,
-        "studley": aenea.format.format_proper,
-        "camel": aenea.format.format_camel,
-        "jumble": aenea.format.format_jumble,
-        "dotword": aenea.format.format_dotword,
-        "dashword": aenea.format.format_dashword,
-        "sentence": aenea.format.format_sentence,
-    }
-
-
-dictation = Dictation(name="dictation")
-
-
-class MyFormatRule(CompoundRule):
-    spec = "<format_rule> <dictation>"
-    extras = [
-        RuleRef(name="format_rule", rule=FormatFunctionMapping()),
-        dictation,
-    ]
+class FormatRule(CompoundRule):
+    spec = (
+        '[upper | natural] ( proper | camel | rel-path | abs-path | score | sentence | '
+        'scope-resolve | jumble | dotword | dashword | natword | snakeword | brooding-narrative) [<dictation>]'
+    )
+    extras = [Dictation(name='dictation')]
 
     def value(self, node):
-        root = node.children[0].children[0]
-        format_rule = root.children[0].value()
-        dictation = root.children[1].value()
-        # TODO need to remove hyphens? see aenea-grammars/_multiedit.py
-        words = dictation.format().lower().split()
-        return Text(format_rule(words))
+        words = node.words()
+
+        uppercase = words[0] == 'upper'
+        lowercase = words[0] != 'natural'
+
+        if lowercase:
+            words = [word.lower() for word in words]
+        if uppercase:
+            words = [word.upper() for word in words]
+
+        words = [word.split('\\', 1)[0].replace('-', '') for word in words]
+        if words[0].lower() in ('upper', 'natural'):
+            del words[0]
+
+        function = getattr(aenea.format, 'format_%s' % words[0].lower())
+        formatted = function(words[1:])
+
+        return Text(formatted)
 
 
-my_format_rule = RuleRef(name="my_format_rule", rule=MyFormatRule())
+my_format_rule = RuleRef(name="my_format_rule", rule=FormatRule())
 
 
-class MyLiteralRule(CompoundRule):
-    """Rule for saying MyFormatRule literally (without interruptions by other rules)"""
-    spec = "literal <my_format_rule>"
-    extras = [my_format_rule]
+class DynamicCountRule(CompoundRule):
+    spec = '<dynamic> [<times>]'
 
-    def _process_recognition(self, node, extras):
-        extras["my_format_rule"].execute()
-
-
-alternatives = []
-alternatives.append(RuleRef(rule=KeystrokeRule()))
-alternatives.append(my_format_rule)
-single_action = Alternative(alternatives)
-
-sequence = Repetition(single_action, min=1, max=16, name="sequence")
-
-
-class MyChainingRule(CompoundRule):
-    spec = "<sequence>"
     extras = [
-        sequence,  # Sequence of actions defined above.
-    ]
-
-    def _process_recognition(self, node, extras):  # @UnusedVariable
-        sequence = extras["sequence"]  # A sequence of actions.
-        for action in sequence:
-            action.execute()
-
-
-my_chaining_rule = MyChainingRule(name="my_chaining_rule")
-
-grammar.add_rule(my_chaining_rule)
-grammar.add_rule(MyLiteralRule(name="literal_rule"))
-
-# TODO move above into separate file
-
-class _SpacemacsKeyRule(MappingRule):
-    exported = False
-    mapping = {
-        "quit": "c-g",
-        "altex": "a-x",
-        "file": "a-m,f",
-        "buffer": "a-m,b",
-        "search": "a-m,s",
-        "window": "a-m,w",
-        "highlight": "a-m,v",
-        "easy": "a-m,o,m",  #personal binding for evil-easymotion
-        "jump": "a-m,j",
-        "jump char":
-        "a-m,o,f",  #personal binding for evil-avy-goto-char-in-line
-        "majit": "a-m,g",
-        "help": "a-m,h",
-    }
-
-
-class SpacemacsKeyRule(CompoundRule):
-    spec = "<emacs_keys>"
-    extras = [RuleRef(name="emacs_keys", rule=_SpacemacsKeyRule())]
-
-    def value(self, node):
-        root = node.children[0].children[0]
-        keys = root.children[0].value()
-        return Key(keys)
-
-    def _process_recognition(self, node, extras):
-        self.value(node).execute()
-
-
-my_vocabulary_mapping = {
-    "py deaf": "def ",
-    "for loop": "for ",
-    "to do": "TODO",
-    "fix me": "FIXME",
-}
-
-
-class MyVocabulary(MappingRule):
-    exported = True
-    mapping = {k: Text(v) for k, v in my_vocabulary_mapping.items()}
-
-class _KeystrokeShortcut(MappingRule):
-    mapping = {
-        # shortcuts for vim style motion
-        "drop": Key("c-d"),
-        "sky": Key("c-u"),
-        "scroll up": Key("c-y"),
-        "scroll down": Key("c-e"),
-        # tmux
-        "tea mux": Key("c-b"),
-        # qutebrowser
-        "google": Key("o,g,space")
-    }
-
-
-class KeystrokeShortcut(CompoundRule):
-    spec = "<keystroke> [<times>]"
-    extras = [
-        RuleRef(name="keystroke", rule=_KeystrokeShortcut()),
+        DictListRef(
+            'dynamic',
+            aenea.vocabulary.register_dynamic_vocabulary('multiedit.count')),
         RuleRef(name="times", rule=repeat_count_rule)
     ]
 
@@ -332,45 +240,70 @@ class KeystrokeShortcut(CompoundRule):
         node.value().execute()
 
 
-prefixes = []
-prefixes.append(RuleRef(KeystrokeShortcut()))
-prefixes.append(RuleRef(rule=MyVocabulary()))
-prefixes.append(RuleRef(rule=SpacemacsKeyRule()))
-prefixes = Alternative(prefixes, name="prefixes")
+alternatives = [
+    RuleRef(rule=KeystrokeRule()),
+    my_format_rule,
+    DictListRef('dynamic multiedit',
+                aenea.vocabulary.register_dynamic_vocabulary('multiedit')),
+    RuleRef(DynamicCountRule()),
+]
+single_action = Alternative(alternatives)
+
+sequence = Repetition(single_action, min=1, max=16, name="sequence")
 
 
-class MyPrefixRule(CompoundRule):
-    spec = "<prefixes> [<sequence>]"
-    extras = [prefixes, sequence]
+class MyLiteralRule(CompoundRule):
+    """Rule for saying MyFormatRule literally (without interruptions by other rules)"""
+    spec = "say <my_format_rule>"
+    extras = [my_format_rule]
+
+    def _process_recognition(self, node, extras):
+        extras["my_format_rule"].execute()
+
+
+my_literal_rule = MyLiteralRule()
+
+
+class MyChainingRule(CompoundRule):
+    spec = "<sequence> [say <my_format_rule>]"
+    extras = [
+        sequence,  # Sequence of actions defined above.
+        my_format_rule
+    ]
 
     def _process_recognition(self, node, extras):  # @UnusedVariable
-        prefixes = extras["prefixes"]
-        prefixes.execute()
-        try:
-            sequence = extras["sequence"]
-        except KeyError:
-            pass
-        else:
-            for action in sequence:
-                action.execute()
+        sequence = extras["sequence"]  # A sequence of actions.
+        for action in sequence:
+            action.execute()
+        if "my_format_rule" in extras:
+            extras["my_format_rule"].execute()
+
+
+my_chaining_rule = MyChainingRule(name="my_chaining_rule")
+
+grammar.add_rule(my_chaining_rule)
+grammar.add_rule(my_literal_rule)
 
 
 class MyMimicRule(MappingRule):
     mapping = {
-        "snore": Mimic("go to sleep") + aenea.proxy_actions.ProxyNotification("Microphone off"),
+        "snore":
+        Mimic("go to sleep") +
+        aenea.proxy_actions.ProxyNotification("Microphone off"),
     }
 
 
-
 grammar.add_rule(MyMimicRule())
-#grammar.add_rule(KeystrokeShortcut())
-grammar.add_rule(MyPrefixRule())
 grammar.load()  # Load the grammar.
 
 
 # Unload function which will be called at unload time.
 def unload():
     global grammar
+    aenea.vocabulary.uninhibit_global_dynamic_vocabulary(
+        'multiedit', MULTIEDIT_TAGS)
+    for tag in MULTIEDIT_TAGS:
+        aenea.vocabulary.unregister_dynamic_vocabulary(tag)
     if grammar:
         grammar.unload()
     grammar = None
